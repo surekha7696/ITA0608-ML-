@@ -1,0 +1,87 @@
+import numpy as np
+from scipy.stats import norm
+from sklearn.mixture import GaussianMixture
+
+# ==========================================
+# 1. EM ALGORITHM FOR GMM FROM SCRATCH
+# ==========================================
+class EM_GMM_Scratch:
+    def __init__(self, n_clusters=2, max_iter=100, tol=1e-4):
+        self.k = n_clusters
+        self.max_iter = max_iter
+        self.tol = tol
+
+    def fit(self, X):
+        X = np.array(X).flatten()
+        n_samples = len(X)
+
+        # Step 0: Initialize parameters (Means, Variances, and Mixing Coefficients)
+        np.random.seed(42)
+        self.means = np.random.choice(X, self.k)
+        self.variances = np.array([np.var(X)] * self.k)
+        self.weights = np.array([1 / self.k] * self.k)
+        
+        # Matrix to hold responsibilities: shape (n_samples, k)
+        resp = np.zeros((n_samples, self.k))
+
+        for iteration in range(self.max_iter):
+            means_old = self.means.copy()
+
+            # --- E-STEP (Expectation) ---
+            # Calculate posterior probabilities (responsibilities) for each cluster
+            for j in range(self.k):
+                resp[:, j] = self.weights[j] * norm.pdf(X, self.means[j], np.sqrt(self.variances[j]))
+            
+            # Normalize responsibilities across clusters so rows sum to 1
+            sum_resp = np.sum(resp, axis=1, keepdims=True)
+            resp /= sum_resp
+
+            # --- M-STEP (Maximization) ---
+            # Re-estimate parameters using updated responsibilities
+            N_k = np.sum(resp, axis=0)  # Effective number of points assigned to cluster k
+
+            for j in range(self.k):
+                # Update Means
+                self.means[j] = np.sum(resp[:, j] * X) / N_k[j]
+                
+                # Update Variances
+                self.variances[j] = np.sum(resp[:, j] * (X - self.means[j]) ** 2) / N_k[j]
+                
+                # Update Mixing Weights
+                self.weights[j] = N_k[j] / n_samples
+
+            # Check convergence (if mean changes are smaller than tolerance)
+            if np.all(np.abs(self.means - means_old) < self.tol):
+                print(f"Converged at iteration {iteration + 1}")
+                break
+
+        return resp
+
+# ==========================================
+# 2. DEMONSTRATION & TESTING
+# ==========================================
+if __name__ == "__main__":
+    # Generate synthetic 1D data from 2 distinct Gaussian distributions
+    np.random.seed(42)
+    cluster_1 = np.random.normal(loc=2.0, scale=0.5, size=50)
+    cluster_2 = np.random.normal(loc=7.0, scale=0.8, size=50)
+    X = np.concatenate([cluster_1, cluster_2])
+
+    # --- Run Custom EM Algorithm ---
+    em = EM_GMM_Scratch(n_clusters=2, max_iter=100)
+    responsibilities = em.fit(X)
+
+    print("--- EXPECTATION & MAXIMIZATION (EM) ALGORITHM RESULTS ---")
+    print(f"Learned Cluster Means (Scratch)    : {np.round(em.means, 4)}")
+    print(f"Learned Variances (Scratch)        : {np.round(em.variances, 4)}")
+    print(f"Learned Mixing Weights (Scratch)   : {np.round(em.weights, 4)}")
+
+    # --- Verification using Scikit-Learn ---
+    gmm = GaussianMixture(n_components=2, random_state=42)
+    X_reshaped = X.reshape(-1, 1)
+    gmm.fit(X_reshaped)
+
+    print("-" * 60)
+    print(f"Scikit-Learn Cluster Means        : {np.round(gmm.means_.flatten(), 4)}")
+    print(f"Scikit-Learn Variances            : {np.round(gmm.covariances_.flatten(), 4)}")
+    print(f"Scikit-Learn Weights              : {np.round(gmm.weights_, 4)}")

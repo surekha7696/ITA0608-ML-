@@ -1,0 +1,59 @@
+import numpy as np
+from sklearn.linear_model import LinearRegression as SklearnLinearRegression
+
+# ==========================================
+# 1. LINEAR REGRESSION FROM SCRATCH
+# ==========================================
+class LinearRegressionScratch:
+    def __init__(self):
+        self.slope = 0
+        self.intercept = 0
+
+    def fit(self, X, y):
+        # Calculate means
+        x_mean = np.mean(X)
+        y_mean = np.mean(y)
+
+        # Calculate slope (m) using formula: sum((x - x_mean) * (y - y_mean)) / sum((x - x_mean)^2)
+        numerator = np.sum((X - x_mean) * (y - y_mean))
+        denominator = np.sum((X - x_mean) ** 2)
+        self.slope = numerator / denominator
+
+        # Calculate intercept (c) using formula: c = y_mean - m * x_mean
+        self.intercept = y_mean - (self.slope * x_mean)
+
+    def predict(self, X):
+        # Line equation: y = m*x + c
+        return self.slope * X + self.intercept
+
+
+# ==========================================
+# 2. DEMONSTRATION & TESTING
+# ==========================================
+if __name__ == "__main__":
+    # Sample Dataset: House Size (in sq ft) vs Price (in $1000s)
+    X = np.array([1000, 1500, 2000, 2500, 3000])  # Input Feature
+    y = np.array([300, 400, 500, 600, 700])        # Target Label
+
+    # --- Test Scratch Implementation ---
+    model = LinearRegressionScratch()
+    model.fit(X, y)
+
+    # Predict for a new house size (e.g., 1800 sq ft)
+    test_size = 1800
+    predicted_price = model.predict(test_size)
+
+    print("--- LINEAR REGRESSION RESULTS ---")
+    print(f"Learned Equation           : y = {model.slope:.2f}x + {model.intercept:.2f}")
+    print(f"Predicted Price (1800 sq ft): ${predicted_price:.2f}k")
+
+    # --- Verification using Scikit-Learn ---
+    X_reshaped = X.reshape(-1, 1)
+    sk_model = SklearnLinearRegression()
+    sk_model.fit(X_reshaped, y)
+    sk_pred = sk_model.predict([[test_size]])
+
+    print("-" * 50)
+    print(f"Scikit-Learn Learned Slope : {sk_model.coef_[0]:.2f}")
+    print(f"Scikit-Learn Intercept     : {sk_model.intercept_:.2f}")
+    print(f"Scikit-Learn Prediction    : ${sk_pred[0]:.2f}k")
