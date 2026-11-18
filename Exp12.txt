@@ -1,0 +1,62 @@
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# ==========================================
+# 1. LOAD DATASET
+# ==========================================
+iris = load_iris()
+X = iris.data    # Features: Sepal length, Sepal width, Petal length, Petal width
+y = iris.target  # Classes: 0 (Setosa), 1 (Versicolor), 2 (Virginica)
+
+# Split dataset: 80% training, 20% testing
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# ==========================================
+# 2. FEATURE SCALING
+# ==========================================
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# ==========================================
+# 3. MODEL TRAINING (KNN with K=3)
+# ==========================================
+knn = KNeighborsClassifier(n_neighbors=3)
+knn.fit(X_train_scaled, y_train)
+
+# Make predictions on test data
+y_pred = knn.predict(X_test_scaled)
+
+# ==========================================
+# 4. EVALUATION & RESULTS
+# ==========================================
+accuracy = accuracy_score(y_test, y_pred)
+cm = confusion_matrix(y_test, y_pred)
+
+print("--- IRIS FLOWER CLASSIFICATION (KNN) RESULTS ---")
+print(f"\nModel Accuracy: {accuracy * 100:.2f}%\n")
+
+print("Confusion Matrix:")
+print(cm)
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred, target_names=iris.target_names))
+
+# ==========================================
+# 5. CLASSIFY A NEW SAMPLE
+# ==========================================
+# Sample measurements: [Sepal Length, Sepal Width, Petal Length, Petal Width]
+new_flower = np.array([[5.1, 3.5, 1.4, 0.2]])
+new_flower_scaled = scaler.transform(new_flower)
+prediction = knn.predict(new_flower_scaled)
+
+print("-" * 50)
+print(f"Sample Input : {new_flower[0]}")
+print(f"Predicted Species : {iris.target_names[prediction[0]].capitalize()}")

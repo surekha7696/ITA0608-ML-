@@ -1,0 +1,102 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, root_mean_squared_error
+
+# ==========================================
+# 1. GENERATE SYNTHETIC CAR DATASET
+# ==========================================
+np.random.seed(42)
+n_samples = 500
+
+data = {
+    'Year': np.random.randint(2010, 2024, n_samples),
+    'Kms_Driven': np.random.randint(5000, 150000, n_samples),
+    'Engine_CC': np.random.randint(800, 3000, n_samples),
+    'Fuel_Type': np.random.choice(['Petrol', 'Diesel', 'CNG'], n_samples),
+    'Transmission': np.random.choice(['Manual', 'Automatic'], n_samples),
+    'Owner_Count': np.random.choice([1, 2, 3], n_samples)
+}
+
+df = pd.DataFrame(data)
+
+# Calculate target price ($1000s) based on logical depreciation formula + random noise
+current_year = 2026
+car_age = current_year - df['Year']
+df['Selling_Price'] = (
+    (df['Engine_CC'] * 0.015) 
+    - (car_age * 1.2) 
+    - (df['Kms_Driven'] * 0.0001) 
+    + np.where(df['Transmission'] == 'Automatic', 4, 0)
+    + np.random.normal(15, 2, n_samples)
+)
+# Ensure non-negative prices
+df['Selling_Price'] = df['Selling_Price'].clip(lower=1.5)
+
+# ==========================================
+# 2. FEATURE PIPELINE PREPROCESSING
+# ==========================================
+X = df.drop(columns=['Selling_Price'])
+y = df['Selling_Price']
+
+# Split dataset into training (80%) and test (20%) sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Define column categories
+num_features = ['Year', 'Kms_Driven', 'Engine_CC', 'Owner_Count']
+cat_features = ['Fuel_Type', 'Transmission']
+
+# Preprocessing transformer
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', StandardScaler(), num_features),
+        ('cat', OneHotEncoder(drop='first'), cat_features)
+    ]
+)
+
+# ==========================================
+# 3. MODEL TRAINING WITH PIPELINE
+# ==========================================
+model = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('regressor', RandomForestRegressor(n_estimators=100, random_state=42))
+])
+
+model.fit(X_train, y_train)
+
+# Predictions
+y_pred = model.predict(X_test)
+
+# ==========================================
+# 4. EVALUATION METRICS
+# ==========================================
+r2 = r2_score(y_test, y_pred)
+rmse = root_mean_squared_error(y_test, y_pred)
+
+print("--- CAR PRICE PREDICTION MODEL RESULTS ---\n")
+print(f"R-squared (R²) Score : {r2:.4f}")
+print(f"Root Mean Squared Error: ${rmse:.2f}k\n")
+
+# ==========================================
+# 5. PREDICT PRICE FOR A NEW CAR SAMPLE
+# ==========================================
+# Sample Input: [Year, Kms_Driven, Engine_CC, Fuel_Type, Transmission, Owner_Count]
+sample_car = pd.DataFrame([{
+    'Year': 2021,
+    'Kms_Driven': 25000,
+    'Engine_CC': 1500,
+    'Fuel_Type': 'Petrol',
+    'Transmission': 'Automatic',
+    'Owner_Count': 1
+}])
+
+predicted_price = model.predict(sample_car)[0]
+
+print("-" * 50)
+print("Sample Input Car Specifications:")
+print(sample_car.to_string(index=False))
+print(f"\nPredicted Selling Price: ${predicted_price:.2f}k")
